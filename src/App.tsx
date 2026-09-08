@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase, supabaseReady } from "./supabase";
+import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
+import { auth, firebaseReady } from "./firebase";
 
 const apiBase = import.meta.env.VITE_API_URL || "";
 
@@ -10,15 +11,15 @@ export function App() {
   const [error, setError] = useState("");
 
   async function load() {
-    if (!supabase) return;
-    const { data } = await supabase.auth.getSession();
-    const s = data.session;
-    if (!s) {
+    if (!auth) return;
+    const current = auth.currentUser;
+    if (!current) {
       setUser(null);
       return;
     }
+    const token = await current.getIdToken();
     const r = await fetch(`${apiBase}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${s.access_token}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
     if (!r.ok) {
       setError("API rechazó el token");
@@ -28,28 +29,23 @@ export function App() {
     const me = await r.json();
     setUser({
       email: me.email,
-      name: me.user_metadata?.name || me.user_metadata?.full_name,
-      picture: me.user_metadata?.avatar_url || me.user_metadata?.picture,
+      name: me.name,
+      picture: me.picture,
     });
   }
 
   useEffect(() => {
-    if (!supabase) return;
-    load();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+    if (!auth) return;
+    const unsub = onAuthStateChanged(auth, () => {
       load();
     });
-    return () => sub.subscription.unsubscribe();
+    return () => unsub();
   }, []);
 
   return (
     <main style={{ fontFamily: "system-ui", padding: 32, maxWidth: 480, color: "#111" }}>
       <h1>KataE1</h1>
-      {!supabaseReady && (
-        <p>
-          Falta <code>VITE_SUPABASE_ANON_KEY</code> en <code>.env</code>.
-        </p>
-      )}
+      {!firebaseReady && <p>Falta la config de Firebase en el build.</p>}
       {user ? (
         <p>
           {user.picture && (
@@ -57,18 +53,21 @@ export function App() {
           )}{" "}
           {user.name || user.email}
           <br />
-          <button onClick={() => supabase?.auth.signOut()}>Salir</button>
+          <button onClick={() => auth && signOut(auth)}>Salir</button>
         </p>
       ) : (
         <>
           <button
-            disabled={!supabase}
-            onClick={() =>
-              supabase?.auth.signInWithOAuth({
-                provider: "google",
-                options: { redirectTo: window.location.origin },
-              })
-            }
+            disabled={!auth}
+            onClick={async () => {
+              if (!auth) return;
+              setError("");
+              try {
+                await signInWithPopup(auth, new GoogleAuthProvider());
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Login falló");
+              }
+            }}
           >
             Entrar con Google
           </button>

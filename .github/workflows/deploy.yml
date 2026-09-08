@@ -36,8 +36,10 @@ jobs:
       - name: Build and push
         run: |
           docker build \
-            --build-arg VITE_SUPABASE_URL=https://cgnqftclzhgjlzollzye.supabase.co \
-            --build-arg VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }} \
+            --build-arg VITE_FIREBASE_API_KEY=AIzaSyAJLHPK7uZg7D0f-fQv7scXvJmTAlSueHs \
+            --build-arg VITE_FIREBASE_AUTH_DOMAIN=round-seeker-309101.firebaseapp.com \
+            --build-arg VITE_FIREBASE_PROJECT_ID=round-seeker-309101 \
+            --build-arg VITE_FIREBASE_APP_ID=1:741064653110:web:6a0ed99ddd5ac8f60a9b97 \
             --build-arg VITE_API_URL= \
             -t "$IMAGE:${{ github.sha }}" \
             -t "$IMAGE:latest" .
